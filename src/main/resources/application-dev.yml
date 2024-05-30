@@ -1,0 +1,10 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: api-catalogs
+          uri: http://localhost:9000
+          predicates:
+            - Path=/gateway/api/catalogs/**
+          filters:
+            - StripPrefix=3

@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: kyc-gateway
+  profiles:
+    active: dev
+
+server:
+  port: 10000

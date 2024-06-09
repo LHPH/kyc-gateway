@@ -8,3 +8,14 @@ spring:
             - Path=/gateway/api/catalogs/**
           filters:
             - StripPrefix=3
+            - Authentication
+        - id: api-users
+          uri: http://localhost:9004
+          predicates:
+            - Path=/gateway/api/users/**
+          filters:
+            - StripPrefix=3
+
+services:
+  internal:
+    session-checking: http://localhost:9004/user/session-checking

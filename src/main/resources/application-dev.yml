@@ -8,7 +8,11 @@ spring:
             - Path=/gateway/api/catalogs/**
           filters:
             - StripPrefix=3
-            - Authentication
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+                  - EXECUTIVE
         - id: api-users
           uri: http://localhost:9004
           predicates:
@@ -19,3 +23,15 @@ spring:
 services:
   internal:
     session-checking: http://localhost:9004/user/session-checking
+
+kyc-config:
+  encryption:
+    enabled: false
+    white-list:
+      - 127.0.0.2
+    aes:
+      key-store: classpath:keystore.p12
+      key-alias: kyc-gtw-key
+      key-password: test123
+      key-store-type: PKCS12
+      key-store-password: test123

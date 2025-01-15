@@ -6,3 +6,19 @@ spring:
 
 server:
   port: 10000
+
+logging:
+  pattern:
+    correlation: "[%X{kyc-correlation-id:-}]"
+
+kyc-messages:
+  catalog:
+    messages:
+      "001":
+        code: KYC-GTW-001
+        message: Unexpected Error
+        type: ERROR
+      "002":
+        code: KYC-GTW-002
+        message: The request is unauthorized
+        type: ERROR

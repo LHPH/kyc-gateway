@@ -22,6 +22,7 @@ import org.springframework.util.Assert;
 import java.util.Arrays;
 import java.util.List;
 
+import static com.kyc.gateway.constants.AppConstants.ATTR_SUB;
 import static com.kyc.gateway.constants.AppConstants.MSG_APP_002;
 
 @Component
@@ -42,21 +43,24 @@ public class CustomerQueryGraphqlGatewayFilterFactory extends AbstractGatewayFil
         return new OrderedGatewayFilter((exchange, chain) -> {
 
             GraphqlRestReq req =  (GraphqlRestReq) exchange.getAttributes().get(ServerWebExchangeUtils.CACHED_REQUEST_BODY_ATTR);
-            String sub = exchange.getAttributes().get("sub").toString();
+            String sub = exchange.getAttributes().get(ATTR_SUB).toString();
 
             if(config.getOperation().equals(req.getOperationName())){
 
                 String replacementWithSub = String.format(config.getReplacement(),sub);
                 req.setQuery(req.getQuery().replaceFirst(config.getRegex(),replacementWithSub));
+                LOGGER.info("Adjust query operation for customer");
 
                 ModifyRequestBodyGatewayFilterFactory.Config cfg = new ModifyRequestBodyGatewayFilterFactory.Config();
                 cfg.setRewriteFunction(String.class, String.class, new CustomerGraphqlRestReqRewrite(objectMapper,req));
 
                 GatewayFilter modifyBodyFilter = factory.apply(cfg);
 
+                LOGGER.info("Modify request for graphql operation for customer");
                 return modifyBodyFilter.filter(exchange, chain);
             }
             else{
+                LOGGER.error("The operation in graphql for customer {} is not allowed",req.getOperationName());
                 throw KycRestException.builderRestException()
                         .errorData(kycMessages.getMessage(MSG_APP_002))
                         .status(HttpStatus.FORBIDDEN)

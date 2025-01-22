@@ -56,22 +56,24 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
         ServerHttpRequest req = exchange.getRequest();
         HttpHeaders httpHeaders = req.getHeaders();
 
-        LOGGER.info("Decrypt Req");
         ServerHttpResponse response = exchange.getResponse();
 
         long contentLength = exchange.getRequest().getHeaders().getContentLength();
         ServerHttpResponseDecorator decorateResponse = new EncryptResponseDecorate(response,aesCipher,objectMapper);
 
         if(!requireEncryptionService.requireEncryption(req)){
+
+            LOGGER.info("The request does not required encrypting/decrypting");
             return chain.filter(exchange);
         }
 
+        LOGGER.info("Start process to decrypt/encrypt request/response");
         if(contentLength>0){
 
             return DataBufferUtils.join(exchange.getRequest().getBody()).flatMap(dataBuffer -> {
 
-                DataBufferUtils.retain(dataBuffer);
-                Flux<DataBuffer> cachedFlux = Flux.defer(() -> Flux.just(dataBuffer.slice(0, dataBuffer.readableByteCount())));
+                DataBufferUtils.retain(dataBuffer);//Flux.just(dataBuffer.slice(0, dataBuffer.readableByteCount())
+                Flux<DataBuffer> cachedFlux = Flux.defer(() -> Flux.just(dataBuffer.split(dataBuffer.readableByteCount())));
                 String encryptedBody = toRaw(cachedFlux);
 
                 String originalBody = getOriginalBody(encryptedBody);
@@ -132,8 +134,10 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
         HttpHeaders httpHeaders = exchange.getRequest().getHeaders();
 
         String authorization = Objects.toString(httpHeaders.getFirst(HttpHeaders.AUTHORIZATION),"");
+        LOGGER.info("Checking if authorization header is present");
         if(StringUtils.isNotEmpty(authorization)){
 
+            LOGGER.info("Decrypting authorization header");
             exchange.getRequest()
                     .mutate()
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + aesCipher.decrypt(authorization.replace("Bearer ", "")))

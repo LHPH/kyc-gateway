@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
+import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static com.kyc.core.constants.GeneralConstants.CORRELATION_ID_HEADER;
+import static com.kyc.gateway.constants.AppConstants.ATTR_SUB;
 import static com.kyc.gateway.constants.AppConstants.ATTR_USER_TYPE;
 import static com.kyc.gateway.constants.AppConstants.MSG_APP_002;
 
@@ -77,8 +79,9 @@ public class AuthenticationGatewayFilterFactory extends AbstractGatewayFilterFac
                         .toEntity(new ParameterizedTypeReference<>() {});
 
                 TokenMetaData tokenMetaData = Objects.requireNonNull(responseToken.getBody()).getData();
-                //TokenMetaData tokenMetaData = new TokenMetaData();
-                //tokenMetaData.setRole("CUSTOMER2");
+                /*TokenMetaData tokenMetaData = new TokenMetaData();
+                tokenMetaData.setRole("CUSTOMER");
+                tokenMetaData.setSub("1");*/
 
                 String role = tokenMetaData.getRole();
                 LOGGER.info("{} - {}",role,config.getRoles());
@@ -91,6 +94,8 @@ public class AuthenticationGatewayFilterFactory extends AbstractGatewayFilterFac
                 }
 
                 exchange.getAttributes().put(ATTR_USER_TYPE,role);
+                exchange.getAttributes().put(ATTR_SUB,tokenMetaData.getSub());
+
                 return chain.filter(exchange);
             }else{
                 LOGGER.error("The request does not contain token");

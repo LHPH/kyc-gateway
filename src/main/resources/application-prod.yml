@@ -4,8 +4,8 @@ spring:
       jks:
         kyc-bundle:
           truststore:
-            location: classpath:keystore.p12
-            password: test123
+            location: ${kyc.config.keystore.gateway.path}
+            password: ${kyc.config.keystore.gateway.secret}
   cloud:
     gateway:
       httpclient:
@@ -150,12 +150,20 @@ services:
 
 kyc-config:
   encryption:
-    enabled: false
-    white-list:
-      - 127.0.0.2
+    enabled: true
+    white-list: ${kyc.config.whitelist.gateway}
     aes:
-      key-store: classpath:keystore.p12
+      key-store: ${kyc.config.keystore.gateway.path}
       key-alias: kyc-gtw-key
-      key-password: test123
+      key-password: ${kyc.config.keystore.gateway.secret}
       key-store-type: PKCS12
-      key-store-password: test123
+      key-store-password: ${kyc.config.keystore.gateway.secret}
+
+logging:
+  file:
+    name: /opt/kyc/logs/${spring.application.name}-${instance}.log
+  logback:
+    rollingpolicy:
+      file-name-pattern: /opt/kyc/logs/${spring.application.name}-${instance}/%d{yyyy-MM-dd}.%i.log.gz
+      max-file-size: 50MB
+      max-history: 3

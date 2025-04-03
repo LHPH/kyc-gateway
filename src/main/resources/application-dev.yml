@@ -3,7 +3,7 @@ spring:
     gateway:
       routes:
         - id: api-catalogs
-          uri: http://localhost:9000
+          uri: ${localhost-dev}:9000
           predicates:
             - Path=/gateway/api/catalogs/**
           filters:
@@ -13,16 +13,132 @@ spring:
                 roles:
                   - CUSTOMER
                   - EXECUTIVE
-        - id: api-users
-          uri: http://localhost:9004
+        - id: api-customers-id
+          uri: ${localhost-dev}:9001
           predicates:
-            - Path=/gateway/api/users/**
+            - Path=/gateway/api/customers/customer/info
           filters:
             - StripPrefix=3
+            - RewritePath=/customer/info, /customer-data
+            - name: CacheRequestBody
+              args:
+                bodyClass: com.kyc.gateway.model.GraphqlRestReq
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+            - name: CustomerQueryGraphql
+              args:
+                regex: "customer\\s*\\{"
+                replacement: "customer(filter: {id: %s}){"
+                operation: "customerById"
+        - id: api-customers
+          uri: ${localhost-dev}:9001
+          predicates:
+            - Path=/gateway/api/customers/**
+          filters:
+            - StripPrefix=3
+            - name: Authentication
+              args:
+                roles:
+                  - EXECUTIVE
+        - id: api-campaigns-customer
+          uri: ${localhost-dev}:9002
+          predicates:
+            - Path=/gateway/api/campaigns/customer/{campaign}/offers/**
+          filters:
+            - StripPrefix=3
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+                  - EXECUTIVE
+        - id: api-campaigns
+          uri: ${localhost-dev}:9002
+          predicates:
+            - Path=/gateway/api/campaigns/**
+          filters:
+            - StripPrefix=3
+            - name: Authentication
+              args:
+                roles:
+                  - EXECUTIVE
+        - id: api-notifications-customer
+          uri: ${localhost-dev}:9003
+          predicates:
+            - Method=GET
+            - Path=/gateway/api/notifications/**
+          filters:
+            - StripPrefix=3
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+        - id: api-notifications
+          uri: ${localhost-dev}:9003
+          predicates:
+            - Path=/gateway/api/notifications/**
+          filters:
+            - StripPrefix=3
+            - name: Authentication
+              args:
+                roles:
+                  - EXECUTIVE
+        - id: api-users-open
+          uri: ${localhost-dev}:9004
+          predicates:
+            - Path=/gateway/api/users/customer/sign-up,/gateway/api/users/user/sign-in, /gateway/api/users/user/sign-out
+          filters:
+            - StripPrefix=3
+        - id: api-users
+          uri: ${localhost-dev}:9004
+          predicates:
+            - Path=/gateway/api/users/user/**
+          filters:
+            - StripPrefix=3
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+                  - EXECUTIVE
+        - id: api-tracking-customers
+          uri: ${localhost-dev}:9006
+          predicates:
+            - Method=POST
+            - Path=/gateway/api/tracking/customers/**
+          filters:
+            - StripPrefix=3
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+        - id: api-tracking
+          uri: ${localhost-dev}:9006
+          predicates:
+            - Path=/gateway/api/tracking/executives/**,/gateway/api/tracking/customer/v1/actions
+          filters:
+            - StripPrefix=3
+            - name: Authentication
+              args:
+                roles:
+                  - EXECUTIVE
+        - id: api-bills
+          uri: ${localhost-dev}:9009
+          predicates:
+            - Path=/gateway/api/bills/**
+          filters:
+            - StripPrefix=3
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+                  - EXECUTIVE
+
+localhost-dev: http://192.168.100.61
 
 services:
   internal:
-    session-checking: http://localhost:9004/user/session-checking
+    session-checking: ${localhost-dev}:9004/user/session-checking
 
 kyc-config:
   encryption:

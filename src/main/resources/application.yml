@@ -2,7 +2,7 @@ spring:
   application:
     name: kyc-gateway
   profiles:
-    active: dev
+    active: dev,check-encryption
 
 server:
   port: 10000
@@ -10,6 +10,9 @@ server:
 logging:
   pattern:
     correlation: "[%X{kyc-correlation-id:-}]"
+  level:
+    org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: INFO
+    org.springframework.cloud.gateway.handler.predicate.PathRoutePredicateFactory: INFO
 
 kyc-messages:
   catalog:

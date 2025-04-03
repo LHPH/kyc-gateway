@@ -1,0 +1,161 @@
+spring:
+  ssl:
+    bundle:
+      jks:
+        kyc-bundle:
+          truststore:
+            location: classpath:keystore.p12
+            password: test123
+  cloud:
+    gateway:
+      httpclient:
+        ssl:
+          ssl-bundle: kyc-bundle
+      routes:
+        - id: api-catalogs
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/catalogs/**
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+                  - EXECUTIVE
+        - id: api-customers-id
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/customers/customer/info
+          filters:
+            - StripPrefix=1
+            - RewritePath=/api/customers/customer/info, /api/customers/customer-data
+            - name: CacheRequestBody
+              args:
+                bodyClass: com.kyc.gateway.model.GraphqlRestReq
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+            - name: CustomerQueryGraphql
+              args:
+                regex: "customer\\s*\\{"
+                replacement: "customer(filter: {id: %s}){"
+                operation: "customerById"
+        - id: api-customers
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/customers/**
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - EXECUTIVE
+        - id: api-campaigns-customer
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/campaigns/customer/{campaign}/offers/**
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+                  - EXECUTIVE
+        - id: api-campaigns
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/campaigns/**
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - EXECUTIVE
+        - id: api-notifications-customer
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Method=GET
+            - Path=/gateway/api/notifications/**
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+        - id: api-notifications
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/notifications/**
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - EXECUTIVE
+        - id: api-users-open
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/users/customer/sign-up,/gateway/api/users/user/sign-in, /gateway/api/users/user/sign-out
+          filters:
+            - StripPrefix=1
+        - id: api-users
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/users/user/**
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+                  - EXECUTIVE
+        - id: api-tracking-customers
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Method=POST
+            - Path=/gateway/api/tracking/customers/**
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+        - id: api-tracking
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/tracking/executives/**,/gateway/api/tracking/customer/v1/actions
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - EXECUTIVE
+        - id: api-bills
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/bills/**
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+                  - EXECUTIVE
+
+services:
+  internal:
+    session-checking: https://api.kyc-dev.com/api/users/user/session-checking
+
+kyc-config:
+  encryption:
+    enabled: false
+    white-list:
+      - 127.0.0.2
+    aes:
+      key-store: classpath:keystore.p12
+      key-alias: kyc-gtw-key
+      key-password: test123
+      key-store-type: PKCS12
+      key-store-password: test123

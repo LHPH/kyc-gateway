@@ -1,7 +1,8 @@
 package com.kyc.gateway.filters;
 
+import com.kyc.core.constants.GeneralConstants;
 import com.kyc.core.exception.KycRestException;
-import com.kyc.core.model.jwt.TokenMetaData;
+import com.kyc.core.model.jwt.JwtData;
 import com.kyc.core.model.web.ResponseData;
 import com.kyc.core.properties.KycMessages;
 import lombok.Getter;
@@ -9,23 +10,18 @@ import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
-import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
-import static com.kyc.core.constants.GeneralConstants.CORRELATION_ID_HEADER;
 import static com.kyc.gateway.constants.AppConstants.ATTR_SUB;
 import static com.kyc.gateway.constants.AppConstants.ATTR_USER_TYPE;
 import static com.kyc.gateway.constants.AppConstants.MSG_APP_002;
@@ -35,11 +31,8 @@ public class AuthenticationGatewayFilterFactory extends AbstractGatewayFilterFac
 
     private final static Logger LOGGER = LoggerFactory.getLogger(AuthenticationGatewayFilterFactory.class);
 
-    @Value("${services.internal.session-checking}")
-    private String urlSessionChecking;
-
     @Autowired
-    private RestClient restClient;
+    private WebClient webClient;
 
     @Autowired
     private KycMessages kycMessages;
@@ -61,42 +54,43 @@ public class AuthenticationGatewayFilterFactory extends AbstractGatewayFilterFac
                 LOGGER.info("Checking token");
                 String token = httpHeaders.getFirst(HttpHeaders.AUTHORIZATION);
 
-                ResponseEntity<ResponseData<TokenMetaData>> responseToken = restClient.post()
-                        .uri(urlSessionChecking)
+                return webClient.get()
                         .header(HttpHeaders.AUTHORIZATION,token)
-                        .header("channel",req.getHeaders().getFirst("channel"))
+                        .header(GeneralConstants.CHANNEL,req.getHeaders().getFirst(GeneralConstants.CHANNEL))
                         .retrieve()
-                        .onStatus(status -> status.value() !=200 ,(request,response) ->{
+                        .onStatus(status -> !status.is2xxSuccessful(),(exceptionFunction) ->{
 
                             LOGGER.error("Bad token");
-                            throw KycRestException.builderRestException()
-                                    .errorData(kycMessages.getMessage(MSG_APP_002))
-                                    .inputData("Bad token")
-                                    .outputData(response)
-                                    .status(HttpStatus.UNAUTHORIZED)
-                                    .build();
+                            return exceptionFunction.bodyToMono(String.class)
+                                            .flatMap(response -> {
+
+                                                throw KycRestException.builderRestException()
+                                                        .errorData(kycMessages.getMessage(MSG_APP_002))
+                                                        .inputData("Bad token")
+                                                        .outputData(response)
+                                                        .status(HttpStatus.UNAUTHORIZED)
+                                                        .build();
+                                            });
                         })
-                        .toEntity(new ParameterizedTypeReference<>() {});
+                        .bodyToMono(new ParameterizedTypeReference<ResponseData<JwtData>>() {})
+                        .flatMap( result -> {
 
-                TokenMetaData tokenMetaData = Objects.requireNonNull(responseToken.getBody()).getData();
-                /*TokenMetaData tokenMetaData = new TokenMetaData();
-                tokenMetaData.setRole("CUSTOMER");
-                tokenMetaData.setSub("1");*/
+                            JwtData jwtData = result.getData();
+                            String role = jwtData.getRole();
+                            LOGGER.info("{} - {}",role,config.getRoles());
+                            if(!config.getRoles().contains(role)){
 
-                String role = tokenMetaData.getRole();
-                LOGGER.info("{} - {}",role,config.getRoles());
-                if(!config.getRoles().contains(role)){
+                                throw KycRestException.builderRestException()
+                                        .errorData(kycMessages.getMessage(MSG_APP_002))
+                                        .status(HttpStatus.FORBIDDEN)
+                                        .build();
+                            }
 
-                    throw KycRestException.builderRestException()
-                            .errorData(kycMessages.getMessage(MSG_APP_002))
-                            .status(HttpStatus.FORBIDDEN)
-                            .build();
-                }
+                            exchange.getAttributes().put(ATTR_USER_TYPE,role);
+                            exchange.getAttributes().put(ATTR_SUB,jwtData.getSub());
 
-                exchange.getAttributes().put(ATTR_USER_TYPE,role);
-                exchange.getAttributes().put(ATTR_SUB,tokenMetaData.getSub());
-
-                return chain.filter(exchange);
+                            return chain.filter(exchange);
+                        });
             }else{
                 LOGGER.error("The request does not contain token");
                 throw KycRestException.builderRestException()

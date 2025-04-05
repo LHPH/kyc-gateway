@@ -7,6 +7,16 @@ spring:
 server:
   port: 10000
 
+management:
+  endpoints:
+    web:
+      base-path: /gateway
+      exposure:
+        include: info,health
+  info:
+    build:
+      enabled: false
+
 logging:
   pattern:
     correlation: "[%X{kyc-correlation-id:-}]"

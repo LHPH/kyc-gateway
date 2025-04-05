@@ -1,6 +1,7 @@
 package com.kyc.gateway.configuration;
 
 import com.kyc.core.config.AesKeyStoreConfig;
+import com.kyc.core.config.BuildDetailConfig;
 import com.kyc.core.properties.KycMessages;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.web.reactive.function.client.WebClientSsl;
@@ -13,7 +14,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 ;
 
 @Configuration
-@Import(value = {KycMessages.class, AesKeyStoreConfig.class})
+@Import(value = {BuildDetailConfig.class,KycMessages.class, AesKeyStoreConfig.class})
 public class AppConfig {
 
     @Value("${services.internal.session-checking}")

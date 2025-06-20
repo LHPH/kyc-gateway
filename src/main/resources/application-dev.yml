@@ -133,8 +133,19 @@ spring:
                 roles:
                   - CUSTOMER
                   - EXECUTIVE
+        - id: api-customer-application
+          uri: ${localhost-dev}:9010
+          predicates:
+            - Path=/gateway/api/customer-application/**
+          filters:
+            - StripPrefix=3
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+                  - EXECUTIVE
 
-localhost-dev: http://192.168.100.61
+localhost-dev: http://localhost
 
 services:
   internal:

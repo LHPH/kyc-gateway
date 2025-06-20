@@ -143,6 +143,17 @@ spring:
                 roles:
                   - CUSTOMER
                   - EXECUTIVE
+        - id: api-customer-application
+          uri: https://api.kyc-dev.com
+          predicates:
+            - Path=/gateway/api/customer-application/**
+          filters:
+            - StripPrefix=1
+            - name: Authentication
+              args:
+                roles:
+                  - CUSTOMER
+                  - EXECUTIVE
 
 services:
   internal:

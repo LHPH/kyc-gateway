@@ -13,7 +13,7 @@ spring:
           ssl-bundle: kyc-bundle
       routes:
         - id: api-catalogs
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/catalogs/**
           filters:
@@ -24,7 +24,7 @@ spring:
                   - CUSTOMER
                   - EXECUTIVE
         - id: api-customers-id
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/customers/customer/info
           filters:
@@ -43,7 +43,7 @@ spring:
                 replacement: "customer(filter: {id: %s}){"
                 operation: "customerById"
         - id: api-customers
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/customers/**
           filters:
@@ -53,7 +53,7 @@ spring:
                 roles:
                   - EXECUTIVE
         - id: api-campaigns-customer
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/campaigns/customer/{campaign}/offers/**
           filters:
@@ -64,7 +64,7 @@ spring:
                   - CUSTOMER
                   - EXECUTIVE
         - id: api-campaigns
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/campaigns/**
           filters:
@@ -74,7 +74,7 @@ spring:
                 roles:
                   - EXECUTIVE
         - id: api-notifications-customer
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Method=GET
             - Path=/gateway/api/notifications/**
@@ -85,7 +85,7 @@ spring:
                 roles:
                   - CUSTOMER
         - id: api-notifications
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/notifications/**
           filters:
@@ -95,13 +95,13 @@ spring:
                 roles:
                   - EXECUTIVE
         - id: api-users-open
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/users/customer/sign-up,/gateway/api/users/user/sign-in, /gateway/api/users/user/sign-out
           filters:
             - StripPrefix=1
         - id: api-users
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/users/user/**
           filters:
@@ -112,7 +112,7 @@ spring:
                   - CUSTOMER
                   - EXECUTIVE
         - id: api-tracking-customers
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Method=POST
             - Path=/gateway/api/tracking/customers/**
@@ -123,7 +123,7 @@ spring:
                 roles:
                   - CUSTOMER
         - id: api-tracking
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/tracking/executives/**,/gateway/api/tracking/customer/v1/actions
           filters:
@@ -133,7 +133,7 @@ spring:
                 roles:
                   - EXECUTIVE
         - id: api-bills
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/bills/**
           filters:
@@ -144,7 +144,7 @@ spring:
                   - CUSTOMER
                   - EXECUTIVE
         - id: api-customer-application
-          uri: https://api.kyc-dev.com
+          uri: ${api-domain}
           predicates:
             - Path=/gateway/api/customer-application/**
           filters:
@@ -155,9 +155,11 @@ spring:
                   - CUSTOMER
                   - EXECUTIVE
 
+api-domain: https://api.kyc-project.dev.com
+
 services:
   internal:
-    session-checking: https://api.kyc-dev.com/api/users/user/session-checking
+    session-checking: ${api-domain}/api/users/user/session-checking
 
 kyc-config:
   encryption:

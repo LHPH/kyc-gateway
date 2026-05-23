@@ -162,3 +162,9 @@ kyc-config:
       key-password: test123
       key-store-type: PKCS12
       key-store-password: test123
+    rsa:
+      key-store: classpath:keystore.p12
+      key-alias: kyc-gateway-rsa-key
+      key-password: test123
+      key-store-type: PKCS12
+      key-store-password: test123

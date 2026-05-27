@@ -63,7 +63,7 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
 
         if(!requireEncryptionService.requireEncryption(req)){
 
-            LOGGER.info("The request does not required encrypting/decrypting");
+            LOGGER.info("The request/response does not required encrypting/decrypting");
             return chain.filter(exchange);
         }
 

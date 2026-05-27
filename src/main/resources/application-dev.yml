@@ -155,7 +155,10 @@ kyc-config:
   encryption:
     enabled: false
     white-list:
-      - 127.0.0.2
+      ips:
+        - 127.0.0.1
+      paths:
+        - "/gateway/public/public-key"
     aes:
       key-store: classpath:keystore.p12
       key-alias: kyc-gtw-key

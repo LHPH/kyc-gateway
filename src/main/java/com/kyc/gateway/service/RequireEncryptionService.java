@@ -18,8 +18,20 @@ public class RequireEncryptionService {
     public boolean requireEncryption(ServerHttpRequest serverHttpRequest){
 
         String remoteIp = serverHttpRequest.getRemoteAddress().getAddress().getHostAddress();
-        LOGGER.info("Checking if incoming {} requires encryption",remoteIp);
-        LOGGER.info("Whitelist {}",encryptionControlConfig.getWhiteList());
-        return encryptionControlConfig.isEnabled() && !encryptionControlConfig.getWhiteList().contains(remoteIp);
+        String url = serverHttpRequest.getPath().toString();
+        LOGGER.info("Checking if incoming ip {} and url {} requires encryption",remoteIp,url);
+        EncryptionControlConfig.EncryptionControlWhiteList whiteList = encryptionControlConfig.getWhiteList();
+        LOGGER.info("Whitelist {}",whiteList);
+
+        if(encryptionControlConfig.isEnabled()){
+
+            boolean matchIp = whiteList.getIps().contains(remoteIp);
+            boolean matchUrl = whiteList.getPaths().contains(url);
+
+            LOGGER.info("Match Ip {}, Match URL: {}",matchIp,matchUrl);
+            return !(matchIp || matchUrl);
+        }
+
+        return false;
     }
 }

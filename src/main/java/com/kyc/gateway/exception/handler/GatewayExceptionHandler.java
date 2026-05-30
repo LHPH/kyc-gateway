@@ -6,6 +6,7 @@ import com.kyc.core.exception.KycRestException;
 import com.kyc.core.model.web.ResponseData;
 import com.kyc.core.properties.KycMessages;
 import com.kyc.core.security.Aes256GcmCipherOperation;
+import com.kyc.core.security.RsaCipherFacade;
 import com.kyc.gateway.model.GatewayEncryptData;
 import com.kyc.gateway.service.RequireEncryptionService;
 import org.apache.logging.log4j.LogManager;
@@ -22,6 +23,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import javax.crypto.SecretKey;
+
+import static com.kyc.core.util.CryptoUtil.transformAesKey;
+import static com.kyc.gateway.constants.AppConstants.HEADER_SESSION_KEY;
 import static com.kyc.gateway.constants.AppConstants.MSG_APP_001;
 
 @Component
@@ -37,6 +42,9 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
 
     @Autowired
     private Aes256GcmCipherOperation aes256GcmCipherOperation;
+
+    @Autowired
+    private RsaCipherFacade rsaCipherFacade;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -88,8 +96,15 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
 
         if(requireEncryptionService.requireEncryption(exchange.getRequest())){
 
-            String json = objectMapper.writeValueAsString(response);
-            String encryptedJson = aes256GcmCipherOperation.encrypt(json);
+            String encryptedJson = "";
+            if(exchange.getRequest().getHeaders().containsKey(HEADER_SESSION_KEY)){
+
+                String key = rsaCipherFacade.decrypt(exchange.getRequest().getHeaders().getFirst(HEADER_SESSION_KEY));
+                SecretKey aesKey = transformAesKey(key);
+
+                String json = objectMapper.writeValueAsString(response);
+                encryptedJson = aes256GcmCipherOperation.encrypt(json,aesKey);
+            }
             return new GatewayEncryptData(encryptedJson);
         }
         return response;

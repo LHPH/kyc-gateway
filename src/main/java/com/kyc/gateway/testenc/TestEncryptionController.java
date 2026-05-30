@@ -1,7 +1,11 @@
 package com.kyc.gateway.testenc;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.kyc.core.security.Aes256GcmCipherOperation;
-import com.kyc.core.security.RsaCipherOperation;
+import com.kyc.core.security.RsaCipherFacade;
 import com.kyc.core.util.CryptoUtil;
 import com.kyc.gateway.model.GatewayEncryptData;
 import org.slf4j.Logger;
@@ -19,6 +23,9 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 
+import static com.kyc.core.util.CryptoUtil.transformAesKey;
+import static com.kyc.gateway.constants.AppConstants.HEADER_SESSION_KEY;
+
 @RestController
 @Profile("check-encryption")
 @RequestMapping("/test/enc")
@@ -30,7 +37,10 @@ public class TestEncryptionController {
     private Aes256GcmCipherOperation aesCipher;
 
     @Autowired
-    private RsaCipherOperation rsaCipher;
+    private RsaCipherFacade rsaCipherFacade;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @PostMapping("/aes/own")
     public ResponseEntity<Mono<GatewayEncryptData>> testAesOwn(
@@ -38,10 +48,11 @@ public class TestEncryptionController {
             @RequestParam(name = "mode",defaultValue = "encrypt") String mode){
 
         try{
-            if("decrypt".equals(mode)){
+            /*if("decrypt".equals(mode)){
                 return ResponseEntity.ok(Mono.just(new GatewayEncryptData(aesCipher.decrypt(req.getData()))));
             }
-            return ResponseEntity.ok(Mono.just(new GatewayEncryptData(aesCipher.encrypt(req.getData()))));
+            return ResponseEntity.ok(Mono.just(new GatewayEncryptData(aesCipher.encrypt(req.getData()))));*/
+            return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
         }
         catch(Exception ex){
 
@@ -70,11 +81,11 @@ public class TestEncryptionController {
     @PostMapping("/aes/on-demand")
     public ResponseEntity<Mono<GatewayEncryptData>> testAesOnDemand(
             @RequestBody GatewayEncryptData req,
+            @RequestHeader(HEADER_SESSION_KEY) String aesKey,
             @RequestParam(name = "mode",defaultValue = "encrypt") String mode){
         try{
 
-            byte [] key = Base64.getDecoder().decode(req.getKey());
-            SecretKey secretKey = new SecretKeySpec(key,"AES");
+            SecretKey secretKey = transformAesKey(aesKey);
 
             if("decrypt".equals(mode)){
                 return ResponseEntity.ok(Mono.just(new GatewayEncryptData(aesCipher.decrypt(req.getData(),secretKey))));
@@ -89,12 +100,44 @@ public class TestEncryptionController {
         }
     }
 
+    @PostMapping("/aes/json/on-demand")
+    public ResponseEntity<Mono<JsonNode>> testAesJsonOnDemand(
+            @RequestBody JsonNode req,
+            @RequestHeader(HEADER_SESSION_KEY) String aesKey,
+            @RequestParam(name = "mode",defaultValue = "encrypt") String mode){
+        try{
+
+            SecretKey secretKey = transformAesKey(aesKey);
+            String strJson;
+            String data;
+            if("decrypt".equals(mode)){
+
+                data = req.at("/data").asText();
+                strJson = aesCipher.decrypt(data,secretKey);
+                return ResponseEntity.ok(Mono.just(objectMapper.readValue(strJson,JsonNode.class)));
+            }
+
+            strJson = objectMapper.writeValueAsString(req);
+            data = aesCipher.encrypt(strJson,secretKey);
+            ObjectNode objectNode = objectMapper.createObjectNode();
+            objectNode.set("data", TextNode.valueOf(data));
+
+            return ResponseEntity.ok(Mono.just(objectNode));
+        }
+        catch(Exception ex){
+
+            LOGGER.warn("Error in encryption/decryption",ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Mono.just(objectMapper.createObjectNode().set("error",TextNode.valueOf(ex.getMessage()))));
+        }
+    }
+
     @GetMapping("/rsa/public-key")
     public ResponseEntity<Mono<Map<String,String>>> getRsaPublicKey(){
 
         try{
 
-            byte [] key = rsaCipher.getPublicKey().getEncoded();
+            byte [] key = rsaCipherFacade.getPublicKey().getEncoded();
             String base64Key = Base64.getEncoder().encodeToString(key);
             return ResponseEntity.ok(Mono.just(Collections.singletonMap("data",base64Key)));
         }
@@ -110,9 +153,9 @@ public class TestEncryptionController {
                                                                @RequestParam(name = "mode",defaultValue = "encrypt") String mode){
         try{
             if("decrypt".equals(mode)){
-                return ResponseEntity.ok(Mono.just(new GatewayEncryptData(rsaCipher.decrypt(req.getData()))));
+                return ResponseEntity.ok(Mono.just(new GatewayEncryptData(rsaCipherFacade.decrypt(req.getData()))));
             }
-            return ResponseEntity.ok(Mono.just(new GatewayEncryptData(rsaCipher.encrypt(req.getData()))));
+            return ResponseEntity.ok(Mono.just(new GatewayEncryptData(rsaCipherFacade.encrypt(req.getData()))));
         }
         catch(Exception ex){
 

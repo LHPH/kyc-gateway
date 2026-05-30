@@ -14,6 +14,7 @@ import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 
 public class EncryptResponseDecorate extends ServerHttpResponseDecorator {
@@ -22,12 +23,14 @@ public class EncryptResponseDecorate extends ServerHttpResponseDecorator {
 
     private final Aes256GcmCipherOperation cipherOperation;
     private final ObjectMapper objectMapper;
+    private final SecretKey secretKey;
 
     public EncryptResponseDecorate(ServerHttpResponse delegate, Aes256GcmCipherOperation cipherOperation,
-                                   ObjectMapper objectMapper) {
+                                   ObjectMapper objectMapper, SecretKey secretKey) {
         super(delegate);
         this.cipherOperation = cipherOperation;
         this.objectMapper = objectMapper;
+        this.secretKey = secretKey;
     }
 
     @Override
@@ -43,9 +46,11 @@ public class EncryptResponseDecorate extends ServerHttpResponseDecorator {
                     byte[] content = new byte[dataBuffer.readableByteCount()];
                     dataBuffer.read(content);
 
-                    String encryptedText = cipherOperation.encrypt(new String(content, StandardCharsets.UTF_8));
+                    String plainText = new String(content,StandardCharsets.UTF_8);
+                    String encryptedText = cipherOperation.encrypt(plainText,secretKey);
+                    byte [] bytesEncryptedText = objectMapper.writeValueAsBytes(new GatewayEncryptData(encryptedText));
 
-                    return bufferFactory.wrap(objectMapper.writeValueAsBytes(new GatewayEncryptData(encryptedText)));
+                    return bufferFactory.wrap(bytesEncryptedText);
                 } catch (JsonProcessingException e) {
                     throw new RuntimeException(e);
                 }

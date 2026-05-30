@@ -2,8 +2,10 @@ package com.kyc.gateway.filters;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kyc.core.exception.KycRestException;
 import com.kyc.core.properties.KycMessages;
 import com.kyc.core.security.Aes256GcmCipherOperation;
+import com.kyc.core.security.RsaCipherFacade;
 import com.kyc.gateway.decorates.DecryptRequestDecorate;
 import com.kyc.gateway.decorates.EncryptResponseDecorate;
 import com.kyc.gateway.model.GatewayEncryptData;
@@ -19,6 +21,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -28,9 +31,15 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static com.kyc.core.constants.TokenConstants.BEARER_TOKEN_PREFIX;
+import static com.kyc.core.util.CryptoUtil.transformAesKey;
+import static com.kyc.gateway.constants.AppConstants.HEADER_SESSION_KEY;
+import static com.kyc.gateway.constants.AppConstants.MSG_APP_002;
 
 @Component
 public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
@@ -39,6 +48,9 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
 
     @Autowired
     private Aes256GcmCipherOperation aesCipher;
+
+    @Autowired
+    private RsaCipherFacade rsaCipherFacade;
 
     @Autowired
     private KycMessages kycMessages;
@@ -56,16 +68,26 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
         ServerHttpRequest req = exchange.getRequest();
         HttpHeaders httpHeaders = req.getHeaders();
 
-        ServerHttpResponse response = exchange.getResponse();
-
-        long contentLength = exchange.getRequest().getHeaders().getContentLength();
-        ServerHttpResponseDecorator decorateResponse = new EncryptResponseDecorate(response,aesCipher,objectMapper);
-
         if(!requireEncryptionService.requireEncryption(req)){
 
-            LOGGER.info("The request/response does not required encrypting/decrypting");
+            LOGGER.info("The request does not required encrypting/decrypting");
             return chain.filter(exchange);
         }
+
+        if(!httpHeaders.containsKey(HEADER_SESSION_KEY)){
+            LOGGER.error("The request does not contain key");
+            throw KycRestException.builderRestException()
+                    .errorData(kycMessages.getMessage(MSG_APP_002))
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .build();
+        }
+
+        String key = rsaCipherFacade.decrypt(httpHeaders.getFirst(HEADER_SESSION_KEY));
+        SecretKey aesKey = transformAesKey(key);
+        ServerHttpResponse response = exchange.getResponse();
+
+        long contentLength = httpHeaders.getContentLength();
+        ServerHttpResponseDecorator decorateResponse = new EncryptResponseDecorate(response,aesCipher,objectMapper,aesKey);
 
         LOGGER.info("Start process to decrypt/encrypt request/response");
         if(contentLength>0){
@@ -74,14 +96,10 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
 
                 DataBufferUtils.retain(dataBuffer);//Flux.just(dataBuffer.slice(0, dataBuffer.readableByteCount())
                 Flux<DataBuffer> cachedFlux = Flux.defer(() -> Flux.just(dataBuffer.split(dataBuffer.readableByteCount())));
-                String encryptedBody = toRaw(cachedFlux);
+                String rawBody = toRaw(cachedFlux);
 
-                String originalBody = getOriginalBody(encryptedBody);
-                int lengthBody = originalBody.getBytes(StandardCharsets.UTF_8).length;
-                httpHeaders.setContentLength(lengthBody);
-
-                decryptAuthorizationHeader(exchange);
-                ServerHttpRequestDecorator decorateRequest = new DecryptRequestDecorate(req,originalBody);
+                GatewayEncryptData requestData = transformRawData(rawBody);
+                ServerHttpRequestDecorator decorateRequest = new DecryptRequestDecorate(req,requestData.getData(),aesCipher,aesKey);
 
                 return chain.filter(exchange.mutate()
                         .request(decorateRequest)
@@ -90,8 +108,7 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
         }
         else{
 
-            decryptAuthorizationHeader(exchange);
-            ServerHttpRequestDecorator decorateRequest = new DecryptRequestDecorate(req);
+            ServerHttpRequestDecorator decorateRequest = new DecryptRequestDecorate(req,aesCipher,aesKey);
 
             return chain.filter(exchange.mutate()
                     .request(decorateRequest)
@@ -115,35 +132,17 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
         return rawRef.get();
     }
 
-    private String getOriginalBody(String encryptedBody)  {
+    private GatewayEncryptData transformRawData(String rawBody){
 
-        if(StringUtils.isNotEmpty(encryptedBody)){
+        if(StringUtils.isNotEmpty(rawBody)){
 
             try {
-                GatewayEncryptData inputData = objectMapper.readValue(encryptedBody, GatewayEncryptData.class);
-                return aesCipher.decrypt(inputData.getData());
+                return objectMapper.readValue(rawBody, GatewayEncryptData.class);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
         }
-        return "";
+        return new GatewayEncryptData("");
     }
-
-    private void decryptAuthorizationHeader(ServerWebExchange exchange){
-
-        HttpHeaders httpHeaders = exchange.getRequest().getHeaders();
-
-        String authorization = Objects.toString(httpHeaders.getFirst(HttpHeaders.AUTHORIZATION),"");
-        LOGGER.info("Checking if authorization header is present");
-        if(StringUtils.isNotEmpty(authorization)){
-
-            LOGGER.info("Decrypting authorization header");
-            exchange.getRequest()
-                    .mutate()
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + aesCipher.decrypt(authorization.replace("Bearer ", "")))
-                    .build();
-        }
-    }
-
 
 }

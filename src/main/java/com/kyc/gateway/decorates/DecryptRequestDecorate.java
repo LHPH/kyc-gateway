@@ -32,9 +32,9 @@ public class DecryptRequestDecorate extends ServerHttpRequestDecorator {
                                   Aes256GcmCipherOperation aesCipher,
                                   SecretKey secretKey) {
         super(delegate);
-        this.originalBody = getDecryptText(data);
-        this.secretKey = secretKey;
         this.aesCipher = aesCipher;
+        this.secretKey = secretKey;
+        this.originalBody = getDecryptText(data);
     }
 
     public DecryptRequestDecorate(ServerHttpRequest delegate,

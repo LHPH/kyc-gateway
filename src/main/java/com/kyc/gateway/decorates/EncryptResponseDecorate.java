@@ -49,6 +49,7 @@ public class EncryptResponseDecorate extends ServerHttpResponseDecorator {
                     String plainText = new String(content,StandardCharsets.UTF_8);
                     String encryptedText = cipherOperation.encrypt(plainText,secretKey);
                     byte [] bytesEncryptedText = objectMapper.writeValueAsBytes(new GatewayEncryptData(encryptedText));
+                    getHeaders().setContentLength(bytesEncryptedText.length);
 
                     return bufferFactory.wrap(bytesEncryptedText);
                 } catch (JsonProcessingException e) {

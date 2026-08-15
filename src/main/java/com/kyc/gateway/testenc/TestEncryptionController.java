@@ -1,9 +1,5 @@
 package com.kyc.gateway.testenc;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import com.kyc.core.security.Aes256GcmCipherOperation;
 import com.kyc.core.security.RsaCipherFacade;
 import com.kyc.core.util.CryptoUtil;
@@ -14,11 +10,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.StringNode;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
@@ -40,7 +45,7 @@ public class TestEncryptionController {
     private RsaCipherFacade rsaCipherFacade;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @PostMapping("/aes/own")
     public ResponseEntity<Mono<GatewayEncryptData>> testAesOwn(
@@ -114,13 +119,13 @@ public class TestEncryptionController {
 
                 data = req.at("/data").asText();
                 strJson = aesCipher.decrypt(data,secretKey);
-                return ResponseEntity.ok(Mono.just(objectMapper.readValue(strJson,JsonNode.class)));
+                return ResponseEntity.ok(Mono.just(jsonMapper.readValue(strJson,JsonNode.class)));
             }
 
-            strJson = objectMapper.writeValueAsString(req);
+            strJson = jsonMapper.writeValueAsString(req);
             data = aesCipher.encrypt(strJson,secretKey);
-            ObjectNode objectNode = objectMapper.createObjectNode();
-            objectNode.set("data", TextNode.valueOf(data));
+            ObjectNode objectNode = jsonMapper.createObjectNode();
+            objectNode.set("data", StringNode.valueOf(data));
 
             return ResponseEntity.ok(Mono.just(objectNode));
         }
@@ -128,7 +133,7 @@ public class TestEncryptionController {
 
             LOGGER.warn("Error in encryption/decryption",ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Mono.just(objectMapper.createObjectNode().set("error",TextNode.valueOf(ex.getMessage()))));
+                    .body(Mono.just(jsonMapper.createObjectNode().set("error",StringNode.valueOf(ex.getMessage()))));
         }
     }
 

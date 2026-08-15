@@ -1,9 +1,5 @@
 package com.kyc.gateway.controllers;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import com.kyc.core.security.RsaCipherFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +9,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.StringNode;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -29,7 +29,9 @@ public class PublicResourceController {
     private RsaCipherFacade rsaCipherFacade;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper JsonMapper;
+    @Autowired
+    private JsonMapper jsonMapper;
 
     @GetMapping("/public-key")
     public ResponseEntity<Mono<JsonNode>> getGatewayPublicKey() throws NoSuchAlgorithmException {
@@ -40,11 +42,11 @@ public class PublicResourceController {
         byte [] hashKey = digest.digest(key);
         LOGGER.info("Returning the public key data to customers");
 
-        ObjectNode dataNode = objectMapper.createObjectNode();
-        dataNode.set("kid", TextNode.valueOf(HexFormat.of().formatHex(hashKey)));
-        dataNode.set("key", TextNode.valueOf(base64Key));
+        ObjectNode dataNode = jsonMapper.createObjectNode();
+        dataNode.set("kid", StringNode.valueOf(HexFormat.of().formatHex(hashKey)));
+        dataNode.set("key", StringNode.valueOf(base64Key));
 
-        ObjectNode rootNode = objectMapper.createObjectNode();
+        ObjectNode rootNode = jsonMapper.createObjectNode();
         rootNode.set("data",dataNode);
 
         return ResponseEntity.ok(Mono.just(rootNode));

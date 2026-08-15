@@ -1,7 +1,5 @@
 package com.kyc.gateway.filters;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kyc.core.exception.KycRestException;
 import com.kyc.core.properties.KycMessages;
 import com.kyc.core.security.Aes256GcmCipherOperation;
@@ -30,13 +28,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.kyc.core.constants.TokenConstants.BEARER_TOKEN_PREFIX;
 import static com.kyc.core.util.CryptoUtil.transformAesKey;
 import static com.kyc.gateway.constants.AppConstants.HEADER_SESSION_KEY;
 import static com.kyc.gateway.constants.AppConstants.MSG_APP_002;
@@ -56,7 +53,7 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
     private KycMessages kycMessages;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @Autowired
     private RequireEncryptionService requireEncryptionService;
@@ -74,7 +71,7 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        if(!httpHeaders.containsKey(HEADER_SESSION_KEY)){
+        if(!httpHeaders.containsHeader(HEADER_SESSION_KEY)){
             LOGGER.error("The request does not contain key");
             throw KycRestException.builderRestException()
                     .errorData(kycMessages.getMessage(MSG_APP_002))
@@ -87,7 +84,7 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
         ServerHttpResponse response = exchange.getResponse();
 
         long contentLength = httpHeaders.getContentLength();
-        ServerHttpResponseDecorator decorateResponse = new EncryptResponseDecorate(response,aesCipher,objectMapper,aesKey);
+        ServerHttpResponseDecorator decorateResponse = new EncryptResponseDecorate(response,aesCipher,jsonMapper,aesKey);
 
         LOGGER.info("Start process to decrypt/encrypt request/response");
         if(contentLength>0){
@@ -137,8 +134,8 @@ public class EncryptionGatewayFilterFactory implements GlobalFilter, Ordered {
         if(StringUtils.isNotEmpty(rawBody)){
 
             try {
-                return objectMapper.readValue(rawBody, GatewayEncryptData.class);
-            } catch (JsonProcessingException e) {
+                return jsonMapper.readValue(rawBody, GatewayEncryptData.class);
+            } catch (JacksonException e) {
                 throw new RuntimeException(e);
             }
         }

@@ -1,6 +1,5 @@
 package com.kyc.gateway.filters;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kyc.core.exception.KycRestException;
 import com.kyc.core.properties.KycMessages;
 import com.kyc.gateway.model.GraphqlRestReq;
@@ -18,6 +17,7 @@ import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Arrays;
 import java.util.List;
@@ -30,7 +30,7 @@ public class CustomerQueryGraphqlGatewayFilterFactory extends AbstractGatewayFil
 
     private final static Logger LOGGER = LoggerFactory.getLogger(CustomerQueryGraphqlGatewayFilterFactory.class);
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
     @Autowired
     private ModifyRequestBodyGatewayFilterFactory factory;
     @Autowired
@@ -52,7 +52,7 @@ public class CustomerQueryGraphqlGatewayFilterFactory extends AbstractGatewayFil
                 LOGGER.info("Adjust query operation for customer");
 
                 ModifyRequestBodyGatewayFilterFactory.Config cfg = new ModifyRequestBodyGatewayFilterFactory.Config();
-                cfg.setRewriteFunction(String.class, String.class, new CustomerGraphqlRestReqRewrite(objectMapper,req));
+                cfg.setRewriteFunction(String.class, String.class, new CustomerGraphqlRestReqRewrite(jsonMapper,req));
 
                 GatewayFilter modifyBodyFilter = factory.apply(cfg);
 

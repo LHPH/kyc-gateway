@@ -49,7 +49,7 @@ public class AuthenticationGatewayFilterFactory extends AbstractGatewayFilterFac
             ServerHttpRequest req = exchange.getRequest();
             HttpHeaders httpHeaders = req.getHeaders();
 
-            if(httpHeaders.containsKey(HttpHeaders.AUTHORIZATION)){
+            if(httpHeaders.containsHeader(HttpHeaders.AUTHORIZATION)){
 
                 LOGGER.info("Checking token");
                 String token = httpHeaders.getFirst(HttpHeaders.AUTHORIZATION);

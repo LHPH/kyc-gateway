@@ -1,7 +1,5 @@
 package com.kyc.gateway.exception.handler;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kyc.core.exception.KycRestException;
 import com.kyc.core.model.web.ResponseData;
 import com.kyc.core.properties.KycMessages;
@@ -13,7 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
+import org.springframework.boot.webflux.error.ErrorWebExceptionHandler;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.http.HttpStatus;
@@ -22,6 +20,8 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import javax.crypto.SecretKey;
 
@@ -47,7 +47,7 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
     private RsaCipherFacade rsaCipherFacade;
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, Throwable ex) {
@@ -63,9 +63,9 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
 
             Object response = prepareResponse(exchange,ex);
             httpStatus = prepareHttpStatus(ex);
-            dataBuffer = bufferFactory.wrap(objectMapper.writeValueAsBytes(response));
+            dataBuffer = bufferFactory.wrap(jsonMapper.writeValueAsBytes(response));
 
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             dataBuffer = bufferFactory.wrap("".getBytes());
             LOGGER.error(" ", e);
         }
@@ -77,7 +77,7 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
     }
 
     @SuppressWarnings("rawtypes")
-    protected Object prepareResponse(ServerWebExchange exchange, Throwable ex) throws JsonProcessingException{
+    protected Object prepareResponse(ServerWebExchange exchange, Throwable ex){
 
         ResponseData response;
         if(ex instanceof KycRestException kycRestException){
@@ -97,12 +97,12 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
         if(requireEncryptionService.requireEncryption(exchange.getRequest())){
 
             String encryptedJson = "";
-            if(exchange.getRequest().getHeaders().containsKey(HEADER_SESSION_KEY)){
+            if(exchange.getRequest().getHeaders().containsHeader(HEADER_SESSION_KEY)){
 
                 String key = rsaCipherFacade.decrypt(exchange.getRequest().getHeaders().getFirst(HEADER_SESSION_KEY));
                 SecretKey aesKey = transformAesKey(key);
 
-                String json = objectMapper.writeValueAsString(response);
+                String json = jsonMapper.writeValueAsString(response);
                 encryptedJson = aes256GcmCipherOperation.encrypt(json,aesKey);
             }
             return new GatewayEncryptData(encryptedJson);

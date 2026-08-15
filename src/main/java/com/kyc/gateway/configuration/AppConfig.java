@@ -5,14 +5,13 @@ import com.kyc.core.config.BuildDetailConfig;
 import com.kyc.core.config.RsaKeyStoreConfig;
 import com.kyc.core.properties.KycMessages;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.web.reactive.function.client.WebClientSsl;
+import org.springframework.boot.webclient.autoconfigure.WebClientSsl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.reactive.function.client.WebClient;
 
-;
 
 @Configuration
 @Import(value = {

@@ -1,7 +1,6 @@
 package com.kyc.gateway.rewrites;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.kyc.gateway.model.GraphqlRestReq;
 import lombok.RequiredArgsConstructor;
 import org.reactivestreams.Publisher;
@@ -10,13 +9,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.factory.rewrite.RewriteFunction;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 @RequiredArgsConstructor
 public class CustomerGraphqlRestReqRewrite implements RewriteFunction<String, String> {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(CustomerGraphqlRestReqRewrite.class);
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final GraphqlRestReq newBody;
 
     @Override
@@ -24,10 +25,10 @@ public class CustomerGraphqlRestReqRewrite implements RewriteFunction<String, St
 
         try{
 
-            String strNewBody = objectMapper.writeValueAsString(newBody);
+            String strNewBody = jsonMapper.writeValueAsString(newBody);
             return Mono.just(strNewBody);
         }
-        catch(JsonProcessingException ex){
+        catch(JacksonException ex){
             throw new RuntimeException(ex);
         }
     }

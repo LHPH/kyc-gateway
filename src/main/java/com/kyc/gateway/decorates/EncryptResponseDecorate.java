@@ -1,7 +1,5 @@
 package com.kyc.gateway.decorates;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kyc.core.security.Aes256GcmCipherOperation;
 import com.kyc.gateway.model.GatewayEncryptData;
 import org.reactivestreams.Publisher;
@@ -13,6 +11,8 @@ import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.json.JsonMapper;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -22,14 +22,14 @@ public class EncryptResponseDecorate extends ServerHttpResponseDecorator {
     private final static Logger LOGGER = LoggerFactory.getLogger(EncryptResponseDecorate.class);
 
     private final Aes256GcmCipherOperation cipherOperation;
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private final SecretKey secretKey;
 
     public EncryptResponseDecorate(ServerHttpResponse delegate, Aes256GcmCipherOperation cipherOperation,
-                                   ObjectMapper objectMapper, SecretKey secretKey) {
+                                   JsonMapper jsonMapper, SecretKey secretKey) {
         super(delegate);
         this.cipherOperation = cipherOperation;
-        this.objectMapper = objectMapper;
+        this.jsonMapper = jsonMapper;
         this.secretKey = secretKey;
     }
 
@@ -48,11 +48,11 @@ public class EncryptResponseDecorate extends ServerHttpResponseDecorator {
 
                     String plainText = new String(content,StandardCharsets.UTF_8);
                     String encryptedText = cipherOperation.encrypt(plainText,secretKey);
-                    byte [] bytesEncryptedText = objectMapper.writeValueAsBytes(new GatewayEncryptData(encryptedText));
+                    byte [] bytesEncryptedText = jsonMapper.writeValueAsBytes(new GatewayEncryptData(encryptedText));
                     getHeaders().setContentLength(bytesEncryptedText.length);
 
                     return bufferFactory.wrap(bytesEncryptedText);
-                } catch (JsonProcessingException e) {
+                } catch (JacksonException e) {
                     throw new RuntimeException(e);
                 }
             }));
